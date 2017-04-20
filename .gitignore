@@ -96,3 +96,9 @@ ENV/
 
 # avoid keys
 *cred.yml
+
+# ignore metastore_db
+metastore_db/
+
+# ignore data
+data/
