@@ -3,15 +3,18 @@
 import matplotlib.pyplot as plt
 import plotly
 import plotly.plotly as py
-from plotly.graph_objs import *
-
 import plotly.tools as tls
 import plotly.graph_objs as go
+import numpy as np
 import yaml
 from os.path import expanduser
 
 class StreamCharts(object):
-    def __init__(self):
+    def __init__(self, window_size=20):
+        """
+        INPUT:
+            - window_size: how many data points to keep track of
+        """
         # 2 stream id
         # api_cred.yml looks like this:
         # plotly:
@@ -38,7 +41,10 @@ class StreamCharts(object):
                     x=[],
                     y=[],
                     mode='lines+markers',
-                    stream=go.Stream(token=self.ids['line'], maxpoints=80)
+                    marker=dict(color="black"),
+                    stream=go.Stream(token=self.ids['line'], maxpoints=80),
+                    name='Average Score',
+                    showlegend=False
                 ),
                 'title': 'Time Series',
                 'filename': 'line-streaming'
@@ -59,12 +65,12 @@ class StreamCharts(object):
             'bar': {
                 'stream_id': self.ids['bar'],
                 'trace': go.Bar(
-                    x=['one', 'two', 'three'],
-                    y=[4, 3, 2],
-                    xaxis='x2',
-                    yaxis='y2',
-                    marker=dict(color="maroon"),
-                    name='Random Numbers',
+                    x=[],
+                    y=[],
+                    # xaxis='x2',
+                    # yaxis='y2',
+                    marker=dict(color="green"),
+                    name='Sentiment Score',
                     stream=go.Stream(token=self.ids['bar'], maxpoints=80),
                     showlegend=False
                 ),
@@ -72,6 +78,15 @@ class StreamCharts(object):
                 'filename': 'bar-streaming'
             }
         }
+        self.x = np.array([]) # list of x labels
+        self.y = np.array([]) # list of y values
+        self.y_mean = np.array([]) # list of y.mean()
+        self.WIN_SIZE = window_size
+        self.stream_line = None
+        self.stream_bar = None
+        self.chart_url = None
+
+        self.init_interview_stream()
 
     def init_stream(self, chart_type=None):
 
@@ -96,41 +111,76 @@ class StreamCharts(object):
 
         return s, url
 
+    def init_interview_stream(self):
+        """initialize stream object of interview sentiment
+        INPUT: None
+        OUTPUT:
+            - s_line: line stream object
+            - s_bar: bar stream object
+            - url: url to the plotly graph
+        """
+
+        s_line_id=self.traces['line']['stream_id']
+        s_bar_id=self.traces['bar']['stream_id']
+
+        trace_line = self.traces['line']['trace']
+        trace_bar = self.traces['bar']['trace']
+
+        title = 'Performance Metrics'
+        filename = 'perf-metric'
+
+        data = go.Data([trace_line, trace_bar])
+
+        # Send fig to Plotly, initialize streaming plot, open new tab
+        url = py.plot(data, filename=filename, auto_open=False)
+
+        self.stream_line = py.Stream(s_line_id)
+        self.stream_bar = py.Stream(s_bar_id)
+        self.stream_line.open()
+        self.stream_bar.open()
+        self.chart_url = url
+
+    def update(self, x_label, y_value):
+        """Update streaming chart
+        INPUT:
+            - x_label: the x axis label (e.g. "Question1")
+            - y_value: the y axis value (e.g. between -10, 10)
+        """
+        self.x = np.append(self.x, x_label)[-self.WIN_SIZE:]
+        self.y = np.append(self.y, y_value)[-self.WIN_SIZE:]
+        self.y_mean = np.append(self.y_mean, self.y.mean())[-self.WIN_SIZE:]
+
+        color = ["green" if positive else "red" for positive in self.y > 0]
+
+        self.stream_bar.write(dict(x=self.x, y=self.y, marker=dict(color=color), type='bar'))
+        self.stream_line.write(dict(x=self.x, y=self.y_mean))
+
+    def close():
+        """Close when done
+        """
+        self.stream_bar.close()
+        self.stream_line.close()
+
 def main():
     import datetime
     import time
-    import numpy as np
 
-    i = 0    # a counter
-    k = 5    # some shape parameter
-
-    # create stream
-    s_line, url_line = StreamCharts().init_stream(chart_type='line')
-    s_pie, url_pie = StreamCharts().init_stream(chart_type='pie')
-    s_bar, url_bar = StreamCharts().init_stream(chart_type='bar')
     # Delay start of stream by 5 sec (time to switch tabs)
     time.sleep(5)
 
-    print("line URL:", url_line)
-    print("pie URL:", url_pie)
-    print("bar URL:", url_bar)
-
+    chart = StreamCharts(window_size=20)
+    print("URL: ",chart.chart_url)
     while True:
-        ## write line
-        x = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
-        y = (np.cos(k*i/50.)*np.cos(i/50.)+np.random.randn(1))[0]
-        s_line.write(dict(x=x, y=y))
+        ###### replace x_label by question name #######
+        x_label = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S.%f')
+        ###### replace y_value by score between [-10, 10] #######
+        y_value = np.random.random_integers(-10,10, size=1)
 
-        nums = np.random.random_integers(0,10, size=(3))
-        ## write pie
-        s_pie.write(dict(labels=['one', 'two', 'three'], values=nums, type='pie'))
-
-        ## write bar
-        s_bar.write(dict(x=['one', 'two', 'three'], y=nums, marker=dict(color=["blue", "orange", "green"]), type='bar'))
-
+        chart.update(x_label=x_label, y_value=y_value)
         time.sleep(1)  # plot a point every second
+
     # Close the stream when done plotting
-    s.close()
+    chart.close()
 
 
 if __name__ == '__main__':
