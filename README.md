@@ -39,6 +39,46 @@ Meetup RSVP stream API:
 * __Flask__: python web server to serve dynamic page
 * __Plotly__: real-time charts to show metrics and predictions
 
+## Compliance to BigData Properties
+
+### Robustness and fault tolerance
+* Kafka: current setup is single instance, SPoF. Future >> Scale Out
+* Spark: current setup is using EMR cluster, already fault tolerant; RDD + DAG delivers resilient abstraction
+* PostgreSQL: current setup is single instance. However, same info is kept in S3 DF Parquet. Future >> Scale Out
+* S3: rely on Amazon to make it fault tolerant (hopefully...)
+* Flask: current setup is single Flask instance, SPoF. Future >> use NginX/Apache http server + scale out
+
+### Low latency reads and updates
+* Spark RDD is imutable, delivers "read only" and "write only" aspect
+* Spark Stream works on "mini batches" delivers low latency (relatively)
+
+### Scalability
+* Kafka: future scale out
+* Spark: already scalable
+* PostgreSQL: future scale out
+* S3: already scalable
+* Flask: future scale out
+
+### Generalization
+* The architecutre can be generalized to text processing
+* For image/video streaming, need to benchmark performance, though should be fine
+
+### Extensibility
+* Kafka producer/consumer paradigm is flexible to handle non-frequent changes (e.g. change both side)
+* PostgreSQL: RDBMS not the best to handle dynamic schema. Future: shift to Mongo
+* Future to adopt Avro for true dynamic typing
+
+### Ad hoc queries
+* Offline batch aspect supported by issuing query to RDBMS, or Spark SQL
+* Real-time aspect not supported as for now. Future: implement lambda architecture to support ad-hoc queries in real-time approximate sense
+
+### Minimal maintenance
+* Use Vagrant and start-up script for easy maintenance
+* Use EC2 features (e.g. snapshot, monitor)
+
+### Debuggability
+* EC2 trace logs, it's there, not obvious though...
+
 ## Detail Description
 
 ### Stream
@@ -113,8 +153,13 @@ The ER diagram as below.
 ### Stream
 * Distributed Kafka setup
 
+### Structure
+* Scale Out RDBMS setup (low priority)
+* Shift to Mongo to support flexible/free schema
+
 ### Synthesize
 * More machine learning tasks
 
 ### Show
 * Query Interface
+* Scale out Flask to NginX/Apache http server cluster + load balancer
