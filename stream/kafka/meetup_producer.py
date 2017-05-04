@@ -8,9 +8,9 @@ from kafka.errors import KafkaError
 
 
 def on_message(ws, message):
-    producer.send('rsvps', message)
-    print(message)
-    producer.flush()
+     print(message)
+     producer.send('meetup-rsvps-topic', message)
+     producer.flush()
 
 
 def on_error(ws, error):
@@ -21,7 +21,7 @@ def on_close(ws):
     print("### closed ###")
 
 
-producer = KafkaProducer(value_serializer=lambda m: json.dumps(m).encode('ascii'),
+producer = KafkaProducer(value_serializer=lambda m: json.dumps(m).encode('utf-8'),
                          bootstrap_servers=['localhost:9092'])
 websocket.enableTrace(True)
 ws = websocket.WebSocketApp("ws://stream.meetup.com/2/rsvps",
