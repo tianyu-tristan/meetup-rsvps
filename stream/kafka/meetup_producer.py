@@ -8,7 +8,7 @@ from kafka.errors import KafkaError
 
 
 def on_message(ws, message):
-     print(message)
+     # print(message)
      producer.send('meetup-rsvps-topic', message)
      producer.flush()
 
