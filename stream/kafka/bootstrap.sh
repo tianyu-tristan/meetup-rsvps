@@ -25,6 +25,9 @@ sudo mkdir /opt/Kafka
 sudo tar -xvf kafka_2.12-0.10.2.0.tgz -C /opt/Kafka/
 nohup sudo /opt/Kafka/kafka_2.12-0.10.2.0/bin/kafka-server-start.sh /opt/Kafka/kafka_2.12-0.10.2.0/config/server.properties &
 
+# install spark
+/vagrant/install_spark.sh
+
 # start producer & consumer
 nohup python3 /vagrant/meetup_producer.py &
 nohup python3 /vagrant/meetup_consumer.py &
