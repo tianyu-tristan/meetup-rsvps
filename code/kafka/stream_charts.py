@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 # plotting libraries
-import matplotlib.pyplot as plt
 import plotly
 import plotly.plotly as py
 import plotly.tools as tls
