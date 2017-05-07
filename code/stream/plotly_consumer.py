@@ -75,7 +75,5 @@ def main():
         last_update = time.time()
 
 
-
-
 if __name__ == '__main__':
     main()

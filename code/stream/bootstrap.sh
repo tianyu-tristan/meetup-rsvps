@@ -9,7 +9,7 @@ sudo add-apt-repository -y ppa:webupd8team/java
 # update & install stuff
 sudo apt-get update -y
 sudo apt install python3-pip -y
-sudo python3 -m pip install pip websocket-client kafka boto3 numpy -U
+sudo python3 -m pip install pip websocket-client kafka boto3 numpy Flask plotly -U
 # nohup sudo python3 /vagrant/stream_meetup.py &
 
 # install java silently

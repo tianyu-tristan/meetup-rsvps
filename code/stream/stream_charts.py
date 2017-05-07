@@ -74,7 +74,7 @@ class StreamCharts(object):
                     stream=go.Stream(token=self.ids['bar'], maxpoints=80),
                     showlegend=False
                 ),
-                'title': 'Moving Bar',
+                'title': 'Meetup RSVP Top Charts',
                 'filename': 'bar-streaming'
             }
         }
@@ -116,7 +116,7 @@ class StreamCharts(object):
     def update(self, chart_type, x_labels, y_values):
         x = np.array(x_labels)[-self.WIN_SIZE:]
         y = np.array(y_values)[-self.WIN_SIZE:]
-        self.streams[chart_type].write(dict(x=x, y=y, marker=dict(color="blue"), type='bar'))
+        self.streams[chart_type].write(dict(x=x, y=y, marker=dict(color=["blue"]*len(y)), type='bar'))
 
 
     def close():
