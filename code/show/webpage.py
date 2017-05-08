@@ -14,7 +14,11 @@ def doit():
     '''
     '''
 
-    return render_template('webpage.html', plotly_embed='https://plot.ly/~mosquitou2/0.embed', timestamp=time.time())
+    return render_template('webpage.html',
+                            bar_embed='https://plot.ly/~mosquitou/15.embed',
+                            pie_embed='https://plot.ly/~mosquitou/11.embed',
+                            line_embed='https://plot.ly/~mosquitou/9.embed',
+                            timestamp=time.time())
 
 
 if __name__ == '__main__':
