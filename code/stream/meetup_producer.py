@@ -24,9 +24,12 @@ def on_close(ws):
 producer = KafkaProducer(value_serializer=lambda m: json.dumps(m).encode('utf-8'),
                          bootstrap_servers=['localhost:9092'])
 websocket.enableTrace(True)
-ws = websocket.WebSocketApp("ws://stream.meetup.com/2/rsvps",
-                            on_message=on_message,
-                            on_error=on_error,
-                            on_close=on_close)
 
-ws.run_forever()
+while(1):
+    ws = websocket.WebSocketApp("ws://stream.meetup.com/2/rsvps",
+                                on_message=on_message,
+                                on_error=on_error,
+                                on_close=on_close)
+    ws.run_forever()
+    print("Connection closed, retrying in 10 sec ...")
+    time.sleep(10)
