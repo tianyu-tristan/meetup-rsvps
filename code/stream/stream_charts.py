@@ -46,20 +46,20 @@ class StreamCharts(object):
                     name='Average Score',
                     showlegend=False
                 ),
-                'title': 'Time Series',
+                'title': 'Meetup RSVP Recent Total Count',
                 'filename': 'line-streaming'
             },
             'pie': {
                 'stream_id': self.ids['pie'],
                 'trace': go.Pie(
-                    labels=['one','two','three'],
-                    values=[20,50,100],
+                    labels=['yes','no','other'],
+                    values=[100,50,20],
                     domain=dict(x=[0, 1]),
-                    text=['one', 'two', 'three'],
+                    #text=['yes', 'no', 'other'],
                     stream=go.Stream(token=self.ids['pie'], maxpoints=80),
                     sort=False
                 ),
-                'title': 'Moving Pie',
+                'title': 'Meetup RSVP Running Response Count',
                 'filename': 'pie-streaming'
             },
             'bar': {
@@ -69,12 +69,12 @@ class StreamCharts(object):
                     y=[],
                     # xaxis='x2',
                     # yaxis='y2',
-                    marker=dict(color="green"),
+                    marker=dict(color="blue"),
                     name='Dynamic Bar',
                     stream=go.Stream(token=self.ids['bar'], maxpoints=80),
                     showlegend=False
                 ),
-                'title': 'Meetup RSVP Top Charts',
+                'title': 'Meetup RSVP Recent Top Event',
                 'filename': 'bar-streaming'
             }
         }
@@ -116,7 +116,12 @@ class StreamCharts(object):
     def update(self, chart_type, x_labels, y_values):
         x = np.array(x_labels)[-self.WIN_SIZE:]
         y = np.array(y_values)[-self.WIN_SIZE:]
-        self.streams[chart_type].write(dict(x=x, y=y, marker=dict(color=["blue"]*len(y)), type='bar'))
+        if chart_type == 'bar':
+            self.streams['bar'].write(dict(x=x, y=y, marker=dict(color=["blue"]*len(y)), type='bar'))
+        elif chart_type == 'pie':
+            self.streams['pie'].write(dict(labels=x, values=y, type='pie'))
+        elif chart_type == 'line':
+            self.streams['line'].write(dict(x=x_labels, y=y_values))
 
 
     def close():
@@ -128,6 +133,7 @@ class StreamCharts(object):
         # self.stream_line.close()
 
 
+# for test only
 def main():
     import datetime
     import time
@@ -146,7 +152,7 @@ def main():
         y_value = np.random.random_integers(-10,10, size=1)[0]
         print("x_label: ",x_label)
         print("y_value: ",y_value)
-        chart.update('bar', x_labels=[x_label], y_values=[y_value])
+        chart.update_bar('bar', x_labels=[x_label], y_values=[y_value])
         time.sleep(1)  # plot a point every second
 
     # Close the stream when done plotting
