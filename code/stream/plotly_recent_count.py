@@ -7,12 +7,12 @@ from stream_charts import StreamCharts
 import numpy as np
 import time
 
-WIN_SIZE = 5 # ticks
+WIN_SIZE = 10
 MIN_TICK = 3 # sec, less than this will not update plotly
 
 class SingetonChart(StreamCharts):
     __instance = None
-    def __new__(cls, chart_type, window_size=WIN_SIZE):
+    def __new__(cls, chart_type, window_size=20):
         if SingetonChart.__instance is None:
             SingetonChart.__instance = StreamCharts(chart_type, window_size)
         return SingetonChart.__instance
@@ -20,17 +20,18 @@ class SingetonChart(StreamCharts):
 def main():
 
     # To consume latest messages and auto-commit offsets
-    consumer = KafkaConsumer('plotly-topic',
-                             group_id='plotly-consumer',
+    consumer = KafkaConsumer('recent-count-topic',
+                             group_id='recent-count-consumer',
                              bootstrap_servers=['localhost:9092'],
                              value_deserializer=lambda m: json.loads(m.decode('utf-8')))
 
-    chart = SingetonChart(chart_type='bar', window_size=WIN_SIZE)
+    chart = SingetonChart(chart_type='line')
 
-    print("consumer started ...")
+    print("Line Chart consumer started ...")
+    print("chart url: ", chart.chart_url)
 
-    x_to_plot = np.array([]) # x_labels
-    y_to_plot = np.array([]) # y_values
+    x_to_plot = np.array([])
+    y_to_plot = np.array([])
 
     last_update = time.time()
 
@@ -42,37 +43,20 @@ def main():
             continue
 #        continue
 
+        count = record['count']
+        timestamp = time.strftime('%b-%d %H:%M:%S')
+
+        x_to_plot = np.append(x_to_plot, timestamp)[-WIN_SIZE:]
+        y_to_plot = np.append(y_to_plot, count)[-WIN_SIZE:]
+
         # only update plotly at min interval of MIN_TICK
         if time.time() - last_update > MIN_TICK:
             print("x to plot: ", x_to_plot)
             print("y to plot: ", y_to_plot)
-            chart.update(chart_type='bar',
+            chart.update(chart_type='line',
                          x_labels=x_to_plot,
                          y_values=y_to_plot)
-            # clear *_to_plot
-            x_to_plot = np.array([])
-            y_to_plot = np.array([])
-
-
-        # init new arrival
-        new_x = np.array(list(record.keys()))
-        new_y = np.array(list(record.values()))
-
-        # append new arrival
-        x_to_plot = np.append(x_to_plot, new_x)
-        y_to_plot = np.append(y_to_plot, new_y)
-
-        # dedup
-        unique_ind = np.unique(x_to_plot, return_index=True)[1]
-        x_to_plot = x_to_plot[unique_ind]
-        y_to_plot = y_to_plot[unique_ind]
-
-        # sort & get first WIN_SIZE items, with ascending=False
-        ind = np.argsort(y_to_plot)[::-1][:WIN_SIZE]
-        x_to_plot = x_to_plot[ind]
-        y_to_plot = y_to_plot[ind]
-
-        last_update = time.time()
+            last_update = time.time()
 
 
 if __name__ == '__main__':
