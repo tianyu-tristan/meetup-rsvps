@@ -9,9 +9,9 @@ from kafka import KafkaProducer
 from collections import Counter
 
 TOP_N = 5
-BATCH_DUR = 10 # sec
+BATCH_DUR = 1 # sec
 WIN_DUR = 300 # sec
-SLIDE_DUR = 10 # sec
+SLIDE_DUR = 1 # sec
 
 
 def extract_event_count(pair):
@@ -101,7 +101,7 @@ def send_rsvp_count(partition):
         return
 
     count = int(count[0])
-    
+
     producer = KafkaProducer(value_serializer=lambda m: json.dumps(m).encode('utf-8'),
                              bootstrap_servers=['localhost:9092'])
 
