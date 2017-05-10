@@ -52,7 +52,7 @@ def main():
             # clear *_to_plot
             x_to_plot = np.array([])
             y_to_plot = np.array([])
-
+            last_update = time.time()
 
         # init new arrival
         new_x = np.array(list(record.keys()))
@@ -72,7 +72,7 @@ def main():
         x_to_plot = x_to_plot[ind]
         y_to_plot = y_to_plot[ind]
 
-        last_update = time.time()
+
 
 
 if __name__ == '__main__':
