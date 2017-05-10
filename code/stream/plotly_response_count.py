@@ -23,21 +23,18 @@ def main():
                              group_id='response-count-consumer',
                              bootstrap_servers=['localhost:9092'],
                              value_deserializer=lambda m: json.loads(m.decode('utf-8')))
-
     chart = SingetonChart(chart_type='pie')
-
     print("consumer started ...")
-
+    last_update = time.time()
     for message in consumer:
         # get new_x and new_y as 1D list
         record = message.value
         print("Received: ", record)
         if len(record) == 0:
             continue
-#        continue
 
-        x_to_plot = record.keys()
-        y_to_plot = record.values()
+        x_to_plot = list(record.keys())
+        y_to_plot = list(record.values())
 
         # only update plotly at min interval of MIN_TICK
         if time.time() - last_update > MIN_TICK:
