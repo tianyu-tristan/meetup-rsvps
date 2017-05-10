@@ -8,7 +8,7 @@ import numpy as np
 import time
 
 WIN_SIZE = 10
-MIN_TICK = 0 # sec, less than this will not update plotly
+MIN_TICK = 0.3 # sec, less than this will not update plotly
 
 class SingetonChart(StreamCharts):
     __instance = None
