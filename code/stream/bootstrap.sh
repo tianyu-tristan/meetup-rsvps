@@ -31,3 +31,4 @@ nohup sudo /opt/Kafka/kafka_2.12-0.10.2.0/bin/kafka-server-start.sh /opt/Kafka/k
 # start producer & consumer
 nohup python3 /vagrant/meetup_producer.py &
 nohup python3 /vagrant/meetup_consumer.py &
+nohup spark-submit --jars /vagrant/spark-streaming-kafka-0-8-assembly_2.11-2.1.1.jar /vagrant/spark_consumer.py &
