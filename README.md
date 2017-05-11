@@ -7,44 +7,54 @@ Study meetup RSVP stream data
 Meetup RSVP stream API:
 
 `http://stream.meetup.com/2/rsvps`  
-`http://stream.meetup.com/2/photos`  
-`http://stream.meetup.com/2/event_comments`  
 
 [DocRef](https://secure.meetup.com/meetup_api/docs/stream/2/rsvps/#websockets)
 
 ## System Architecture Overview
 
-![](rsvp-dataflow.png)
+### Logical View
+
+The inidial idea of the target architecture looks like below.
+
+![](target_arch.png)
+
+### Physical View
+
+The exact implementation is shown as below.
+
+![](5S.png)
 
 ### Stream
-* __Kafka Websocket Producer__: recieve from Meetup Websocket Stream API, pipe to Kafka
+* __Kafka Websocket Producer__: recieve from Meetup Websocket Stream API, pipe to 1st Kafka topic
 * __Kafka Instance__: running in EC2
-* __Kafka Spark Consumer__: receive from Kafka, pipe to Spark Stream for real-time analysis, then pipe dashboard data to Flask/Plotly
+* __Kafka Spark Streaming Consumer__: receive from Kafka, pipe to Spark Stream for real-time analysis, then forward transformed data to 2nd kafka topic
 
 ### Store
-* __Kafka S3 Consumer__: receive from Kafka, store raw data in S3 for batch analysis
+* __Kafka Firehose Consumer__: receive from 1st Kafka topic, forward raw data to Kinesis Firehose
+* __Raw S3__: receive from Firhose, store raw data in S3 bucket for batch analysis at later stage
 
 ### Structure
-* __Spark__: perform ETL to persist to PostgreSQL and DataFrame paquet in S3 >>> 3NF
-* __PostgreSQL__: RDBMS version of structured ETL data
-* __S3__: parquet-ed Spark DataFrame version of structured ETL data
+* __Spark ETL__: read raw data from S3, perform ETL to transform raw data into structured data, persisted as Spark DataFrame paquet in separate S3 location
+* __3NF S3__: parquet-ed Spark DataFrame version of structured ETL data. The ETL transofrmed data shall conform to 3rd Normal Form.
 
 ### Synthesize
-* __Spark ML__: 
-	* load DataFrame from S3
-	* perform Machine Learning tasks
-	* persist model in S3 (to be loaded in Spark Stream)
+* __Spark SQL EDA__: load the parquet-ed dataframe, perform simple EDA on meetup rsvp data, e.g. who is the most active user, which is the most popular group, etc
+* __Plotly Updater__: kafka consumers that receive from 2nd kafka topic, transform data and update plotly charts via plotly streaming API.
+* __Machine Learning__: 
+	* download parquet data from S3 to local (e.g. `aws s3 sync`)
+	* load DataFrame in sklearn
+	* perform hierarchical clustering using urlkeys
+	* perform regression with ensemble method to predict cluster label
 
 ### Show
-* __Flask__: python web server to serve dynamic page
-* __Plotly__: real-time charts to show metrics and predictions
+* __Flask__: python web server to serve templated web page
+* __Plotly__: real-time dynamic charts to show dashboard about streaming data
 
 ## Compliance to BigData Properties
 
 ### Robustness and fault tolerance
 * Kafka: current setup is single instance, SPoF. Future >> Scale Out
 * Spark: current setup is using EMR cluster, already fault tolerant; RDD + DAG delivers resilient abstraction
-* PostgreSQL: current setup is single instance. However, same info is kept in S3 DF Parquet. Future >> Scale Out
 * S3: rely on Amazon to make it fault tolerant (hopefully...)
 * Flask: current setup is single Flask instance, SPoF. Future >> use NginX/Apache http server + scale out
 
@@ -54,74 +64,32 @@ Meetup RSVP stream API:
 
 ### Scalability
 * Kafka: future scale out
-* Spark: already scalable
-* PostgreSQL: future scale out
+* Spark: already scalable with EMR
 * S3: already scalable
-* Flask: future scale out
+* Flask: future scale out (cluster + load balancer + stateless)
 
 ### Generalization
-* The architecutre can be generalized to text processing
-* For image/video streaming, need to benchmark performance, though should be fine
+* The architecutre can be generalized to any near real-time streaming text processing workload, by replacing the business logic part
+* For true real-time streaming, need to explore event based approach
 
 ### Extensibility
-* Kafka producer/consumer paradigm is flexible to handle non-frequent changes (e.g. change both side)
-* PostgreSQL: RDBMS not the best to handle dynamic schema. Future: shift to Mongo
-* Future to adopt Avro for true dynamic typing
+* Kafka vanilla producer/consumer is flexible to handle non-frequent data model changes (e.g. change both side)
+* Future to adopt Avro producer/consumer for dynamic typing
 
 ### Ad hoc queries
-* Offline batch aspect supported by issuing query to RDBMS, or Spark SQL
-* Real-time aspect not supported as for now. Future: implement lambda architecture to support ad-hoc queries in real-time approximate sense
+* Offline batch aspect supported by Spark SQL
+* Real-time aspect is not supported as for now. Future: implement lambda architecture to support ad-hoc queries by union the query result from both stream and batch sides
 
 ### Minimal maintenance
-* Use Vagrant and start-up script for easy maintenance
-* Use EC2 features (e.g. snapshot, monitor)
+* Use Vagrant and start-up script for deployment automation and easy maintenance
+* Use EC2 features (e.g. snapshot, monitor) for fast recovery
 
 ### Debuggability
 * EC2 trace logs, it's there, not obvious though...
 
-## Detail Description
+## Additonal Information
 
-### Stream
-
-#### Websocket Poller Sample Code
-
-```python
-#!/usr/bin/env python3
-import websocket
-import _thread
-import time
-
-def on_message(ws, message):
-    print (message)
-
-def on_error(ws, error):
-    print (error)
-
-def on_close(ws):
-    print ("### closed ###")
-
-def on_open(ws):
-    def run(*args):
-        while True:
-            time.sleep(1)
-            # ws.send("Hello %d" % i)
-        ws.close()
-        print ("thread terminating...")
-    _thread.start_new_thread(run, ())
-
-
-if __name__ == "__main__":
-    websocket.enableTrace(True)
-    ws = websocket.WebSocketApp("ws://stream.meetup.com/2/rsvps",
-                                on_message = on_message,
-                                on_error = on_error,
-                                on_close = on_close)
-    ws.on_open = on_open
-
-    ws.run_forever()
-```
-
-### Structure
+### 3rd Normal Form ER Diagram
 Both Parquet-ed S3 DataFrame and RDBMS PostgreSQL persisted data shall conform with 3rd Normal Form (3NF).
 
 The ER diagram as below.
@@ -129,32 +97,18 @@ The ER diagram as below.
 ![](rsvp-diagram.png)
 
 
-### Synthesize
+## Screenshots/Demo
 
-* General metrics:
-	* E.g. Count RSVP per region
-* Derived metrics:
-	* E.g. Study what category of meetup is popular
-* Predicted metrics:
-	* E.g. Predict RSVP Yes/No based on other attributes
-
-### Show
-* Flask to render dynamic page
-* Plotly to show real-time charts
-
-## Stories
-### Use Case Scenarios TBA
-...
+![](screenshot.png)
 
 ## Future
 ### Architecture
-* Build full-fledged Lambda architecture to "merge" the real-time and batch query result, show in Web HMI
+* Build full-fledged Lambda architecture to "merge" the stream and batch query result, show in Web HMI
 
 ### Stream
 * Distributed Kafka setup
 
 ### Structure
-* Scale Out RDBMS setup (low priority)
 * Shift to Mongo to support flexible/free schema
 
 ### Synthesize
